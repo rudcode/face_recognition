@@ -198,6 +198,55 @@ def face_landmarks(face_image, face_locations=None, model="large"):
         } for points in landmarks_as_tuples]
     else:
         raise ValueError("Invalid landmarks model type. Supported models are ['small', 'large'].")
+        
+        
+def _raw_face_landmarks_batched(face_images, known_face_locations=None, model="large"):
+    if known_face_locations is None:
+        known_face_locations = batch_face_locations(face_images, batch_size=len(face_images))
+
+    known_face_locations = [[_css_to_rect(face_location) for face_location in face_locations] for face_locations in known_face_locations]
+
+    pose_predictor = pose_predictor_68_point
+
+    if model == "small":
+        pose_predictor = pose_predictor_5_point
+
+    return [[pose_predictor(face_image, face_location) for face_location in face_locations] for face_image, face_locations in zip(face_images, known_face_locations)]
+
+
+def batch_face_landmarks(face_images, face_locations=None, model="large"):
+    """
+    Given an array of images, return an array where the i-th cell is a dict of face feature locations (eyes, nose, etc) for each face in the i-th image.
+
+    :param face_images: An array of images that contains one or more faces
+    :param known_face_locations: Optional - the bounding boxes of each face in each image if you already know them.
+    :param model: Optional - which model to use. "large" (default) or "small" which only returns 5 points but is faster.
+    :return: A list of dicts of face feature locations (eyes, nose, etc)
+    """
+    landmarks_batch = _raw_face_landmarks_batched(face_images, face_locations, model)
+    landmarks_batch_as_tuples = [[[(p.x, p.y) for p in landmark.parts()] for landmark in landmarks] for landmarks in landmarks_batch]
+
+    # For a definition of each point index, see https://cdn-images-1.medium.com/max/1600/1*AbEg31EgkbXSQehuNJBlWg.png
+    if model == 'large':
+        return [[{
+            "chin": points[0:17],
+            "left_eyebrow": points[17:22],
+            "right_eyebrow": points[22:27],
+            "nose_bridge": points[27:31],
+            "nose_tip": points[31:36],
+            "left_eye": points[36:42],
+            "right_eye": points[42:48],
+            "top_lip": points[48:55] + [points[64]] + [points[63]] + [points[62]] + [points[61]] + [points[60]],
+            "bottom_lip": points[54:60] + [points[48]] + [points[60]] + [points[67]] + [points[66]] + [points[65]] + [points[64]]
+        } for points in landmarks_as_tuples] for landmarks_as_tuples in landmarks_batch_as_tuples]
+    elif model == 'small':
+        return [[{
+            "nose_tip": [points[4]],
+            "left_eye": points[2:4],
+            "right_eye": points[0:2],
+        } for points in landmarks_as_tuples] for landmarks_as_tuples in landmarks_batch_as_tuples]
+    else:
+        raise ValueError("Invalid landmarks model type. Supported models are ['small', 'large'].")
 
 
 def face_encodings(face_image, known_face_locations=None, num_jitters=1, model="small"):
@@ -227,11 +276,8 @@ def batch_face_encodings(face_images, known_face_locations=None, num_jitters=1, 
     if known_face_locations is None:
         known_face_locations = batch_face_locations(face_images, batch_size=len(face_images))
 
-    raw_landmarks = [
-        _raw_face_landmarks(face_image, this_known_face_locations, model)
-        for face_image, this_known_face_locations in zip(face_images, known_face_locations)
-    ]
-
+    raw_landmarks = _raw_face_landmarks_batched(face_images, known_face_locations, model)
+    
     def to_fod(landmarks):
         detects = dlib.full_object_detections()
         detects.extend(landmarks)
