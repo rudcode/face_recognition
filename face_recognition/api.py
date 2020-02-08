@@ -215,6 +215,33 @@ def face_encodings(face_image, known_face_locations=None, num_jitters=1, model="
     landmarks_as_fod.extend(raw_landmarks)
     return np.array(face_encoder.compute_face_descriptor(face_image, landmarks_as_fod, num_jitters))
 
+
+def batch_face_encodings(face_images, known_face_locations=None, num_jitters=1, model="small"):
+    """
+    Given an array of images, return an array where the i-th cell is an array of 128-dimension face encodings for each face in the i-th image.
+    :param face_images: An array of images that contains one or more faces
+    :param known_face_locations: Optional - the bounding boxes of each face in each image if you already know them.
+    :param num_jitters: How many times to re-sample the face when calculating encoding. Higher is more accurate, but slower (i.e. 100 is 100x slower)
+    :return: A list of lists of 128-dimensional face encodings (one list for each face in each image)
+    """
+    if known_face_locations is None:
+        known_face_locations = batch_face_locations(face_images, batch_size=len(face_images))
+
+    raw_landmarks = [
+        _raw_face_landmarks(face_image, this_known_face_locations, model)
+        for face_image, this_known_face_locations in zip(face_images, known_face_locations)
+    ]
+
+    def to_fod(landmarks):
+        detects = dlib.full_object_detections()
+        detects.extend(landmarks)
+        return detects
+
+    raw_landmarks = [to_fod(landmarks) for landmarks in raw_landmarks]
+
+    return np.array(face_encoder.compute_face_descriptor(face_images, raw_landmarks, num_jitters))
+
+
 def compare_faces(known_face_encodings, face_encoding_to_check, tolerance=0.6):
     """
     Compare a list of face encodings against a candidate encoding to see if they match.
