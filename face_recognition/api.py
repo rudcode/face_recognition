@@ -89,7 +89,7 @@ def load_image_file(file, mode='RGB'):
     return np.array(im)
 
 
-def _raw_face_locations(img, number_of_times_to_upsample=1, model="hog"):
+def _raw_face_locations(img, number_of_times_to_upsample=1, model="cnn"):
     """
     Returns an array of bounding boxes of human faces in a image
 
@@ -105,7 +105,7 @@ def _raw_face_locations(img, number_of_times_to_upsample=1, model="hog"):
         return face_detector(img, number_of_times_to_upsample)
 
 
-def face_locations(img, number_of_times_to_upsample=1, model="hog"):
+def face_locations(img, number_of_times_to_upsample=1, model="cnn"):
     """
     Returns an array of bounding boxes of human faces in a image
 
@@ -116,7 +116,7 @@ def face_locations(img, number_of_times_to_upsample=1, model="hog"):
     :return: A list of tuples of found face locations in css (top, right, bottom, left) order
     """
     if model == "cnn":
-        return [_trim_css_to_bounds(_rect_to_css(face.rect), img.shape) for face in _raw_face_locations(img, number_of_times_to_upsample, "cnn")]
+        return [_trim_css_to_bounds(_rect_to_css(face.rect), img.shape) for face in _raw_face_locations(img, number_of_times_to_upsample, model)]
     else:
         return [_trim_css_to_bounds(_rect_to_css(face), img.shape) for face in _raw_face_locations(img, number_of_times_to_upsample, model)]
 
