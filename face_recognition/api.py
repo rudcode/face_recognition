@@ -105,7 +105,7 @@ def _raw_face_locations(img, number_of_times_to_upsample=1, model="cnn"):
         return face_detector(img, number_of_times_to_upsample)
 
 
-def face_locations(img, number_of_times_to_upsample=1, model="cnn"):
+def face_locations(img, number_of_times_to_upsample=1, model="cnn", confidence=0.6):
     """
     Returns an array of bounding boxes of human faces in a image
 
@@ -116,7 +116,7 @@ def face_locations(img, number_of_times_to_upsample=1, model="cnn"):
     :return: A list of tuples of found face locations in css (top, right, bottom, left) order
     """
     if model == "cnn":
-        return [_trim_css_to_bounds(_rect_to_css(face.rect), img.shape) for face in _raw_face_locations(img, number_of_times_to_upsample, model)]
+        return [_trim_css_to_bounds(_rect_to_css(face.rect), img.shape) for face in _raw_face_locations(img, number_of_times_to_upsample, model) if face.confidence >= confidence]
     else:
         return [_trim_css_to_bounds(_rect_to_css(face), img.shape) for face in _raw_face_locations(img, number_of_times_to_upsample, model)]
 
@@ -132,7 +132,7 @@ def _raw_face_locations_batched(images, number_of_times_to_upsample=1, batch_siz
     return cnn_face_detector(images, number_of_times_to_upsample, batch_size=batch_size)
 
 
-def batch_face_locations(images, number_of_times_to_upsample=1, batch_size=128):
+def batch_face_locations(images, number_of_times_to_upsample=1, batch_size=128, confidence=0.6):
     """
     Returns an 2d array of bounding boxes of human faces in a image using the cnn face detector
     If you are using a GPU, this can give you much faster results since the GPU
@@ -144,7 +144,7 @@ def batch_face_locations(images, number_of_times_to_upsample=1, batch_size=128):
     :return: A list of tuples of found face locations in css (top, right, bottom, left) order
     """
     def convert_cnn_detections_to_css(detections):
-        return [_trim_css_to_bounds(_rect_to_css(face.rect), images[0].shape) for face in detections]
+        return [_trim_css_to_bounds(_rect_to_css(face.rect), images[0].shape) for face in detections if face.confidence >= confidence]
 
     raw_detections_batched = _raw_face_locations_batched(images, number_of_times_to_upsample, batch_size)
 
